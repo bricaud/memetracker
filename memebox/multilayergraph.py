@@ -1,6 +1,7 @@
 ##################################################################################
 #   Functions for constructing the multilayer graph from the dataframes of n-grams
 ##################################################################################
+import networkx as nx
 
 def time_slice(df,start_date,end_date):
     # df must have a column 'date
@@ -147,3 +148,99 @@ def compress_component(G,threshold):
         return G3
     else:
         return nx.DiGraph()
+
+def days_of_month(year,month):
+    """ return a list of the days of the chosen month
+        elements are in the datetime format
+    """
+    import datetime
+    from dateutil.relativedelta import relativedelta
+    # Choose the year
+    base = datetime.datetime(year,1,1)
+    #three_mon_rel = relativedelta(months=3)
+    month_list = [base + relativedelta(month=x) for x in range(1, 13)]
+    # day list
+    day_list = [month_list[month-1]+datetime.timedelta(days=n) for n in range(31) 
+            if month_list[month-1]+datetime.timedelta(days=n)<month_list[month]]
+    start_date=day_list[0].strftime("%d-%m-%Y")
+    end_date=day_list[-1].strftime("%d-%m-%Y")
+    print('Dates are from {} to {}.'.format(start_date,end_date))
+    return day_list
+
+def multilayergraph(text_data,day_list,threshold):
+    """ return the multi layer graph of activated components
+        in the text_data, over the days of day_list
+        The activity below the threshold is not recorded as active:
+        threshold = minimal number of occurences during a day
+    """
+    import datetime
+    H = nx.DiGraph(start_date=day_list[0],end_date=day_list[-1])
+    #start_date = pd.datetime(2015,1,1)
+    #increment = datetime.timedelta(days=1)
+    #end_date = start_date + increment
+    G_old = nx.DiGraph()
+    for idx,day in enumerate(day_list):
+        # Compute the graph layer
+        data = time_slice(text_data,day,day+datetime.timedelta(days=1))
+        G = layer_graph(data,day)
+        G = drop_edges(G,threshold)
+        # the color number corresponds to the layer (time)
+        color = idx/len(day_list)
+        nx.set_node_attributes(G,'color',color)
+        # Add the layer to the global graph
+        H.add_nodes_from(G.nodes(data=True))
+        H.add_edges_from(G.edges(data=True))
+        # Connect the layer
+        H = connect_layer(H,G_old,G)
+        G_old = G
+    H.remove_nodes_from(nx.isolates(H))
+    print('Nb of edges: {}, nb of nodes: {}.'.format(H.size(),len(H.nodes())))
+    return H
+
+def compress_multilayer(graph,threshold=0):
+    """ Compress all the weakly connected components of the multilayer graph
+        and return a graph union of the compressed components
+        compressed components means flattened graphs over the time axis.
+        In each component, the nodes appearing over time less than the threshold are discarded
+    """
+    import networkx as nx
+    G_all = nx.DiGraph()
+    for c in nx.weakly_connected_component_subgraphs(graph):
+        cc = compress_component(c,threshold)
+        G_all = nx.compose(G_all,cc)
+    return G_all
+
+def save_graph(graph,filename):
+    from networkx.readwrite import json_graph
+    import json
+    json_filename = filename
+    data = json_graph.node_link_data(graph)
+    #,attrs={'source': 'source', 'target': 'target','key': 'key', 'id': 'id', 'nb_occur':'nb_occur','start_time':'start_time','name':'name', 'color':'color'})#,'time_length':'time_length'})
+    data['links'] = [
+            {
+                'source': data['nodes'][link['source']]['id'],
+                'target': data['nodes'][link['target']]['id']
+            }
+            for link in data['links']]
+    data['name'] = graph.graph['series_name']
+    data['start_date'] = graph.graph['start_date']
+    data['end_date'] = graph.graph['end_date']
+    s = json.dumps(data)
+    with open(filename, "w") as f:
+        f.write(s)
+
+def draw_graph(graph):
+    import networkx as nx
+    import matplotlib.pyplot as plt
+    nx.draw_networkx(graph)
+    plt.show()
+
+def web_viz(graph,url):
+    """
+    open a new tab on the web browser with url 'url' to display the graph
+    It is needed to run a webserver in the folder where the json file has been saved
+    using for example: python3 -m http.server --bind 127.0.0.1 8008
+    """
+    import webbrowser
+    #webbrowser.open_new_tab(url)
+    webbrowser.open_new(url)

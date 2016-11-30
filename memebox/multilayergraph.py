@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 ##################################################################################
 #   Functions for constructing the multilayer graph from the dataframes of n-grams
 ##################################################################################
@@ -235,7 +236,7 @@ def draw_graph(graph):
     nx.draw_networkx(graph)
     plt.show()
 
-def web_viz(graph,url):
+def web_viz(url):
     """
     open a new tab on the web browser with url 'url' to display the graph
     It is needed to run a webserver in the folder where the json file has been saved

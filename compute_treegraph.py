@@ -22,14 +22,15 @@ viz_path = config['DEFAULT']['viz_data_path']
 
 
 # Series name
-#series_name = 'marseille'
-series_name = 'LBDL'
+series_name = 'marseille'
+#series_name = 'LBDL'
 
 pickle_file = pickle_data_path+series_name+'_texts'+'.pkl'
 text_data = pd.read_pickle(pickle_file)
 
 # Word to search ngrams form:
 candidat_word = "légendes"
+candidat_word = "depardieu"
 # Number n of n-grams
 n_grams = 5
 

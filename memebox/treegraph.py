@@ -144,8 +144,10 @@ def get_ngram_infos(dic_of_ngrams,text_data):
         info_dic_k['nb_occur'] = len(list_k)
         info_dic_k['medias'] = text_data.loc[list_k].platform.value_counts().to_dict()
         timeseries = text_data.loc[list_k].date.sort_values()
-        timeseries = timeseries.groupby(timeseries.dt.strftime('%Y-%m-%d')).size()
+        start_time = timeseries.iloc[0]
+        timeseries = timeseries.groupby(timeseries.dt.strftime('%d-%m-%Y')).size()
         info_dic_k['timeseries'] = timeseries.to_dict()
+        info_dic_k['start_time'] = start_time.strftime('%d-%m-%Y')
         info_dic_of_ngrams[k]=info_dic_k
     return info_dic_of_ngrams
 
@@ -185,32 +187,41 @@ def createTreeGraph_fromdic(dic_of_ngrams,root_word,threshold=0):
     # the root word is contained in list_of_df_of_ngrams[0].ngram[0]
     # threshold (int) set the number of occurences above which a ngram is included in the graph
     # popularity (int) limits the number of n-gram added to the graph to the top m=popularity**n
-    # if popularity=0 the is no limit.
+    # if popularity=0 there is no limit.
     
     import networkx as nx
     # root word
     root_id = '_'+root_word
     print('Create the graph and add the root node \'{}\'.'.format(root_word))
     G = nx.DiGraph()
-    # compute the number of occurences of the word:
+    # get the number of occurences of the word:
     nb_occur = dic_of_ngrams[root_word]['nb_occur']#int(list_of_df_of_ngrams[0].nb_occur[0])
-    #nb_occur = 0
-    G.add_node(root_id,name=root_word, occur=nb_occur)
+    # find the main media for the word
+    main_media,nb_occur_m_media = get_main_media(dic_of_ngrams[root_word]['medias'])
+    start_time = dic_of_ngrams[root_word]['start_time']
+    G.add_node(root_id,name=root_word, occur=nb_occur, main_media=main_media, 
+        nb_occur_m_media=nb_occur_m_media, start_time=start_time, relative_time=0)
     print('Add children nodes from the n-grams dataset.')
     for k in dic_of_ngrams.keys():
         infos_k = dic_of_ngrams[k]
-        add_node_layer_fromdic(G,k,infos_k,threshold)
+        add_node_layer_fromdic(G,root_id,k,infos_k,threshold)
     return G,root_id
 
-def add_node_layer_fromdic(G,ngram,info_ngram,threshold=0):
+
+def add_node_layer_fromdic(G,root_id,ngram,info_ngram,threshold=0):
     # Add all the nodes of a layer
     # Add them only if the nb of occur is above the threshold
     # ngram_df is the dataframe containing the ngrams with their occurence
     # layer is the graph layer ()
+    from datetime import datetime
+    date_format = "%d-%m-%Y"
 
     word_list = ngram.split()
     root_node = word_list[0]
     nb_occur = info_ngram['nb_occur']
+    main_media,nb_occur_m_media = get_main_media(info_ngram['medias'])
+    start_time = info_ngram['start_time']
+    root_start_date = G.node[root_id]['start_time']
     if nb_occur>=threshold:
         if len(word_list)>=2: #not the root node
             for idx,word in enumerate(word_list):
@@ -228,11 +239,23 @@ def add_node_layer_fromdic(G,ngram,info_ngram,threshold=0):
                         G.add_edge(parent_id, word_id)
                         if idx == len(word_list)-1:
                             G.node[word_id]['occur'] = nb_occur
+                            G.node[word_id]['main_media'] = main_media
+                            G.node[word_id]['nb_occur_m_media'] = nb_occur_m_media
+                            G.node[word_id]['start_time'] = start_time
+                            a = datetime.strptime(start_time, date_format)
+                            b = datetime.strptime(root_start_date, date_format)
+                            delta = a - b
+                            G.node[word_id]['relative_time'] = delta.days
                     #if popularity:
                     #    if idx>=popularity-1:
                     #        break
 
-        
+def get_main_media(dic_of_medias):
+    # find the main media where the word appears
+    # return the main media and its number of appearances in ths media
+    import numpy
+    main_media = max(dic_of_medias, key=lambda key: dic_of_medias[key])
+    return main_media,numpy.asscalar(dic_of_medias[main_media])        
 
 
 def add_node_layer(G,ngram_df,threshold=0,popularity=0):

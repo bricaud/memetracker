@@ -175,6 +175,7 @@ def days_of_month(year,month):
     base = datetime.datetime(year,1,1)
     #three_mon_rel = relativedelta(months=3)
     month_list = [base + relativedelta(month=x) for x in range(1, 13)]
+    month_list = month_list+[datetime.datetime(year+1,1,1)]
     # day list
     day_list = [month_list[month-1]+datetime.timedelta(days=n) for n in range(31) 
             if month_list[month-1]+datetime.timedelta(days=n)<month_list[month]]

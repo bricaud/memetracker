@@ -94,6 +94,8 @@ def find_dates(G):
     return start_date,end_date
 
 def add_relative_date(G):
+    """ add a property to the nodes of graph G, giving the time of appearance relative to the appearance of the first node
+    """
     import datetime
     if nx.number_of_nodes(G)>0:
         date_list = [ datetime.datetime.strptime(m,"%d-%m-%Y") for n,m in nx.get_node_attributes(G,'start_time').items()]
@@ -104,29 +106,42 @@ def add_relative_date(G):
     return G
 
 def compress_component(G,threshold):
+    """ Merge together nodes of G with the same name but different time of appearance.
+        G is a multilayer graph.
+        filter out the nodes with a name that appears in the multilayer graph less time than the threshold
+        attach a unique component id to each node.
+    """
     from collections import Counter
-    # nodes
+    # extract the names from the node ids (the id contain the name and the date)
     node_list = [get_node_name(node) for node in G.nodes()] # name from id
-    nodes_dic = Counter(node_list)
+    # make a list of unique names and count their occurence in G
+    nodes_dic = Counter(node_list) # list of unique names with the number of appearance
+    # get rid of the names that do not occur often (less than threshold):
     nodes_t = [(name,{'nb_occur':nb_occur}) for (name,nb_occur) in nodes_dic.items() if nb_occur>threshold]
+    # make a list of names to iterate on
     node_list = [name for (name,prop) in nodes_t]
-    if len(node_list)>0:
-        #node time
-        node_data = G.nodes(data=True)
-        #edges
+
+    if len(node_list)>1: # at least 2 nodes with distinct names in the component!
+        # get the edges between nodes in node_list
         edge_list = [(get_node_name(u),get_node_name(v)) for (u,v) in G.edges()]
         edge_list = [(u,v) for (u,v) in edge_list if (u in node_list and v in node_list)]
         edge_list = [(u,v) for (u,v) in edge_list if not (u == v)]
-        #graph
+        # create a new graph for the compressed component
         G2 = nx.DiGraph()
         G2.graph['start_date']=G.graph['start_date'].strftime("%d-%m-%Y")
         G2.graph['end_date']=G.graph['end_date'].strftime("%d-%m-%Y")
+        # add the nodes and edges
         G2.add_nodes_from(nodes_t)
         G2.add_edges_from(edge_list)
-        #G2 = max(nx.weakly_connected_component_subgraphs(G2), key=len)
+        # get rid of the isolated nodes
         G2.remove_nodes_from(nx.isolates(G2))
+        # add properties to the nodes
+        # component id
+        component_id = create_cc_id(G) #unique id for the component    
+        #G2.set_node_attributes('component_id',component_id)
+        for node in G2.nodes():
+            G2.node[node]['component_id'] = component_id
         # time property
-        node_data = G.nodes(data=True)
         start_date,end_date = find_dates(G)
         #print(start_date,end_date)
         for node in G2.nodes():
@@ -141,9 +156,9 @@ def compress_component(G,threshold):
             #print(date_to_int(time_list[0],start_date,end_date))
             G2.node[node]['color_rel_full'] = date_to_int(time_list[0],start_date,end_date)
             #G2.node[node]['time_length'] = len(time_list)
-            # relabel the nodes to take into account the first time stamp
+        # add relative date property: for the date relative to the beginning of the component
         G2 = add_relative_date(G2)
-        #[ print(props) for(name,props) in G2.nodes(data=True)]
+        # relabel the nodes to take into account the first time stamp
         dic_of_names = {name:name+'_'+props['start_time'] for(name,props) in G2.nodes(data=True) }
         G3 = nx.relabel_nodes(G2,dic_of_names)
         return G3
@@ -184,6 +199,8 @@ def multilayergraph(text_data,day_list,threshold):
         # Compute the graph layer
         data = time_slice(text_data,day,day+datetime.timedelta(days=1))
         G = layer_graph(data,day)
+        degrees = G.degree(weight='weight')
+        nx.set_node_attributes(G,'degree',degrees)
         G = drop_edges(G,threshold)
         # the color number corresponds to the layer (time)
         color = idx/len(day_list)
@@ -206,9 +223,9 @@ def compress_multilayer(graph,threshold=0):
     """
     import networkx as nx
     G_all = nx.DiGraph()
-    for c in nx.weakly_connected_component_subgraphs(graph):
-        cc = compress_component(c,threshold)
-        G_all = nx.compose(G_all,cc)
+    for cc in nx.weakly_connected_component_subgraphs(graph):
+        comp_cc = compress_component(cc,threshold)
+        G_all = nx.compose(G_all,comp_cc)
     return G_all
 
 def save_graph(graph,filename):
@@ -245,3 +262,65 @@ def web_viz(url):
     import webbrowser
     #webbrowser.open_new_tab(url)
     webbrowser.open_new(url)
+
+def create_cc_id(ccomponent):
+    """ create a unique id for the connected component
+    """
+    node_list = ccomponent.nodes()
+    sorted_node_list = sorted(node_list)
+    ccomponent_id = sorted_node_list[0] #unique id for the component (can be any node of the component)
+    ccomponent_id = encode_cc_id(ccomponent_id)
+    return ccomponent_id
+
+def encode_cc_id(component_id):
+    """ Return a string encoded in base 64 that do not contain any special character
+        and allows to be used as a filename
+    """
+    import base64
+    return base64.urlsafe_b64encode(component_id.encode('UTF-8')).decode('UTF-8')
+
+def decode_cc_id(encoded_id):
+    """ Decode the id encoded with 'encode_cc_id'
+    """
+    import base64
+    return base64.urlsafe_b64decode(encoded_id).decode('UTF-8')
+
+def CC_to_df(ccomponent):
+    """ Create a dataframe of nodes with their properties to analyse the time evolution of a component
+        ccomponent is a graph, connected component of the multilayer graph
+        returns: 
+        - a dataframe containing node properties as columns
+        - a component id that will be used to identify the component
+            (this id is also attached to each node of the component)
+    """
+    import pandas
+    df_nodes = pandas.DataFrame()
+    ccomponent_id = create_cc_id(ccomponent) #unique id for the component
+    for node,data in ccomponent.nodes(data=True):
+        df_nodes.loc[node,'id']=node
+        df_nodes.loc[node,'name']=data['name']
+        df_nodes.loc[node,'day']=data['timestamp'].day
+        df_nodes.loc[node,'month']=data['timestamp'].month
+        df_nodes.loc[node,'year']=data['timestamp'].year
+        df_nodes.loc[node,'degree']=data['degree']
+        df_nodes.loc[node,'cc_id']=ccomponent_id
+    df_nodes.day = df_nodes.day.astype(int)
+    df_nodes.month = df_nodes.month.astype(int)
+    df_nodes.year = df_nodes.year.astype(int)
+    df_nodes.degree = df_nodes.degree.astype(int)
+    ids,indices = df_nodes.name.factorize() # associate a number to each unique node name in the component
+    df_nodes['word_id_nb']=ids
+    return df_nodes,ccomponent_id
+
+def extract_components_as_timetables(G,path):
+    """ Extract the components from the multilayer graph
+        and save them in files, inside the path
+    """
+    for ccomponent in nx.weakly_connected_component_subgraphs(G):
+        name_list = [data['name'] for node,data in ccomponent.nodes(data=True)]
+        if len(set(name_list))>1: # each component must have nodes with at least 2 distinct names 
+            df,cc_id = CC_to_df(ccomponent)
+            #print(cc_id)
+            filename = path+'timecomponent_'+cc_id+'.json'
+            print('saving to {}'.format(filename))
+            df.to_json(filename,orient='records')

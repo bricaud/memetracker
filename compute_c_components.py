@@ -23,23 +23,42 @@ viz_path = config['DEFAULT']['viz_data_path']
 time_component_path = config['DEFAULT']['time_data_path']
 
 series_name = 'LBDL'
-#series_name = 'marseille'
+series_name = 'marseille'
+series_name = 'versailles'
+series_name = 'baron_noir'
 
 pickle_file = pickle_data_path+series_name+'_texts'+'.pkl'
 text_data = pd.read_pickle(pickle_file)
+
+min_threshold = 15
+time_threshold = 1
+def compute_components(text_data,day_list):
+	# compute the components
+	# return the multilayer graph and the graph of compressed components
+	import numpy as np
+	threshold = 30
+	print('Computing the multilayer graph.')
+	H = mlg.multilayergraph(text_data,day_list,threshold=threshold)
+	print('Compressing the connected components.')
+	G_all = mlg.compress_multilayer(H,time_threshold)
+	threshold2 = max(min_threshold,threshold+20*np.log2((1+G_all.size())/70.0)) # add one to avoid empty graph singularity
+	print('adapting the threshold to value: {}'.format(threshold2))
+	print('Computing the multilayer graph with new threshold.')
+	H = mlg.multilayergraph(text_data,day_list,threshold=threshold2)
+	print('Compressing the connected components.')
+	G_all = mlg.compress_multilayer(H,time_threshold)
+	G_all.graph['series_name'] = series_name
+	G_all.graph['threshold'] = str(threshold2)
+	return H,G_all
 
 # for the year 2015
 year = 2015
 for month in range(1,13):
 	day_list = mlg.days_of_month(year,month)
-	# compute the components
-	print('Computing the multilayer graph.')
-	H = mlg.multilayergraph(text_data,day_list,threshold=30)
-	print('Compressing the connected components.')
-	G_all = mlg.compress_multilayer(H)
-	G_all.graph['series_name'] = series_name
+	# compute the components, H is the multilayer grah, G_all is the graph with all the compressed components
+	H,G_all = compute_components(text_data,day_list)
 	# save the graph
-	json_filename = 'ccomponents'+str(year)+'_'+str(month)+'.json'
+	json_filename = 'cc_'+series_name+'_'+str(year)+'_'+str(month)+'.json'
 	filename = viz_path + json_filename
 	mlg.save_graph(G_all,filename)
 	print('Graph written to file: {}'.format(filename))
@@ -50,19 +69,15 @@ for month in range(1,13):
 year = 2016
 for month in range(1,10):
 	day_list = mlg.days_of_month(year,month)
-	# compute the components
-	print('Computing the multilayer graph.')
-	H = mlg.multilayergraph(text_data,day_list,threshold=30)
-	print('Compressing the connected components.')
-	G_all = mlg.compress_multilayer(H)
-	G_all.graph['series_name'] = series_name
+	H,G_all = compute_components(text_data,day_list)
 	# save the graph
-	json_filename = 'ccomponents'+str(year)+'_'+str(month)+'.json'
+	json_filename = 'cc_'+series_name+'_'+str(year)+'_'+str(month)+'.json'
 	filename = viz_path + json_filename
 	mlg.save_graph(G_all,filename)
 	print('Graph written to file: {}'.format(filename))
 	print('extracting the time data from the connected components')
 	mlg.extract_components_as_timetables(H,time_component_path)
+
 
 
 # show it with networkx

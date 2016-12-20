@@ -203,6 +203,7 @@ def multilayergraph(text_data,day_list,threshold):
         degrees = G.degree(weight='weight')
         nx.set_node_attributes(G,'degree',degrees)
         G = drop_edges(G,threshold)
+        G.remove_nodes_from(nx.isolates(G)) # get rid of isolated nodes on the layer
         # the color number corresponds to the layer (time)
         color = idx/len(day_list)
         nx.set_node_attributes(G,'color',color)
@@ -233,20 +234,30 @@ def save_graph(graph,filename):
     from networkx.readwrite import json_graph
     import json
     json_filename = filename
-    data = json_graph.node_link_data(graph)
-    #,attrs={'source': 'source', 'target': 'target','key': 'key', 'id': 'id', 'nb_occur':'nb_occur','start_time':'start_time','name':'name', 'color':'color'})#,'time_length':'time_length'})
-    data['links'] = [
-            {
-                'source': data['nodes'][link['source']]['id'],
-                'target': data['nodes'][link['target']]['id']
-            }
-            for link in data['links']]
-    data['name'] = graph.graph['series_name']
-    data['start_date'] = graph.graph['start_date']
-    data['end_date'] = graph.graph['end_date']
-    s = json.dumps(data)
-    with open(filename, "w") as f:
-        f.write(s)
+    if graph.size()!=0:
+        data = json_graph.node_link_data(graph)
+        #,attrs={'source': 'source', 'target': 'target','key': 'key', 'id': 'id', 'nb_occur':'nb_occur','start_time':'start_time','name':'name', 'color':'color'})#,'time_length':'time_length'})
+        data['links'] = [
+                {
+                    'source': data['nodes'][link['source']]['id'],
+                    'target': data['nodes'][link['target']]['id']
+                }
+                for link in data['links']]
+        data['name'] = graph.graph['series_name']
+        data['start_date'] = graph.graph['start_date']
+        data['end_date'] = graph.graph['end_date']
+        s = json.dumps(data)
+        with open(filename, "w") as f:
+            f.write(s)
+    else:
+        print('====================')
+        print('Warning: empty graph')
+        print('====================')
+        data = json_graph.node_link_data(graph)
+        s = json.dumps(data)
+        with open(filename, "w") as f:
+            f.write(s)
+
 
 def draw_graph(graph):
     import networkx as nx

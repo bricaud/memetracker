@@ -402,7 +402,7 @@ def CC_to_df_edges(ccomponent,date_delta):
             df_edges.loc[edge_id,'id']=edge_id
             df_edges.loc[edge_id,'name']=node1_data['name']+' '+node2_data['name']
             if date_delta=='hour':
-                df_edges.loc[edge_id,'hour']=data['timestamp'].hour
+                df_edges.loc[edge_id,'hour']=node1_data['timestamp'].hour
             df_edges.loc[edge_id,'day']=node1_data['timestamp'].day
             df_edges.loc[edge_id,'month']=node1_data['timestamp'].month
             df_edges.loc[edge_id,'year']=node1_data['timestamp'].year

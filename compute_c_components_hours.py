@@ -63,7 +63,7 @@ for month in range(1,13):
 	mlg.save_graph(G_all,filename)
 	print('Graph written to file: {}'.format(filename))
 	print('extracting the time data from the connected components')
-	mlg.extract_components_as_timetables(H,time_component_path,items='nodes')
+	mlg.extract_components_as_timetables(H,time_component_path,'edges')#items='nodes')
 
 # for the year 2016
 year = 2016
@@ -76,7 +76,7 @@ for month in range(1,10):
 	mlg.save_graph(G_all,filename)
 	print('Graph written to file: {}'.format(filename))
 	print('extracting the time data from the connected components')
-	mlg.extract_components_as_timetables(H,time_component_path,items=nodes)
+	mlg.extract_components_as_timetables(H,time_component_path,'edges')#items='nodes')
 
 
 

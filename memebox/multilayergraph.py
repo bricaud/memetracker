@@ -11,9 +11,15 @@ def time_slice(df,start_date,end_date):
     df_slice = df.loc[mask]
     return df_slice
 
-def layer_graph(df,timestamp):
-# for each text, create node for each keyword and connect to its following word 
-    timestamp_str = '_'+timestamp.strftime("%Y-%m-%d")
+def layer_graph(df,timestamp,date_delta):
+# for each text, create node for each keyword and connect to its following word
+# date_delta = 'day' our 'hour'
+    if date_delta == 'day': 
+        timestamp_str = '_'+timestamp.strftime("%Y-%m-%d")
+    elif date_delta =='hour':
+        timestamp_str = '_'+timestamp.strftime("%Y-%m-%d-%H")
+    else:
+        raise ValueError("date-delta not recognized. Use 'day' or 'hour'. ")
     G = nx.DiGraph()
     for row in df.itertuples():
         text = row.filtered_text
@@ -75,11 +81,17 @@ def range_date(start, end, delta):
         yield curr
         curr += delta
 
-def date_to_int(date, start, end):
+def date_to_int(date, start, end,date_delta):
     # return an int in[0,1]
     # from a date between [start, end]
+    # date_delta = 'day' or 'hour'
     from datetime import timedelta
-    list_dates =[n for n in range_date(start, end+timedelta(days=1), timedelta(days=1))]
+    if date_delta=='day':
+        list_dates =[n for n in range_date(start, end+timedelta(days=1), timedelta(days=1))]
+    elif date_delta=='hour':
+        list_dates =[n for n in range_date(start, end+timedelta(hours=1), timedelta(hours=1))]
+    else:
+        raise ValueError("time delta must be 'day' or 'hour'.")
     idx = list_dates.index(date)
     if (len(list_dates)-1)>0:
         value = idx/(len(list_dates)-1)
@@ -97,12 +109,13 @@ def add_relative_date(G):
     """ add a property to the nodes of graph G, giving the time of appearance relative to the appearance of the first node
     """
     import datetime
+    date_delta=G.graph['date_delta']
     if nx.number_of_nodes(G)>0:
         date_list = [ datetime.datetime.strptime(m,"%d-%m-%Y") for n,m in nx.get_node_attributes(G,'start_time').items()]
         start_date = min(date_list)
         end_date = max(date_list)
         for (node,props) in G.nodes(data=True):
-            G.node[node]['color_rel'] = date_to_int(datetime.datetime.strptime(props['start_time'],"%d-%m-%Y"),start_date,end_date)
+            G.node[node]['color_rel'] = date_to_int(datetime.datetime.strptime(props['start_time'],"%d-%m-%Y"),start_date,end_date,date_delta)
     return G
 
 def compress_component(G,threshold):
@@ -130,6 +143,8 @@ def compress_component(G,threshold):
         G2 = nx.DiGraph()
         G2.graph['start_date']=G.graph['start_date'].strftime("%d-%m-%Y")
         G2.graph['end_date']=G.graph['end_date'].strftime("%d-%m-%Y")
+        date_delta = G.graph['date_delta']
+        G2.graph['date_delta']=G.graph['date_delta']
         # add the nodes and edges
         G2.add_nodes_from(nodes_t)
         G2.add_edges_from(edge_list)
@@ -152,9 +167,9 @@ def compress_component(G,threshold):
             time_list.sort()
             G2.node[node]['start_time']=time_list[0].strftime("%d-%m-%Y")
             G2.node[node]['name'] = node
-            G2.node[node]['color'] = date_to_int(time_list[0],G.graph['start_date'],G.graph['end_date'])
+            G2.node[node]['color'] = date_to_int(time_list[0],G.graph['start_date'],G.graph['end_date'],date_delta)
             #print(date_to_int(time_list[0],start_date,end_date))
-            G2.node[node]['color_rel_full'] = date_to_int(time_list[0],start_date,end_date)
+            G2.node[node]['color_rel_full'] = date_to_int(time_list[0],start_date,end_date,date_delta)
             #G2.node[node]['time_length'] = len(time_list)
         # add relative date property: for the date relative to the beginning of the component
         G2 = add_relative_date(G2)
@@ -184,28 +199,57 @@ def days_of_month(year,month):
     print('Dates are from {} to {}.'.format(start_date,end_date))
     return day_list
 
-def multilayergraph(text_data,day_list,threshold):
+def hours_of_month(year,month):
+    """ return a list of the hours of the chosen month
+        elements are in the datetime format
+    """
+    import datetime
+    from dateutil.relativedelta import relativedelta
+    # Choose the year
+    base = datetime.datetime(year,1,1)
+    #three_mon_rel = relativedelta(months=3)
+    month_list = [base + relativedelta(month=x) for x in range(1, 13)]
+    month_list = month_list+[datetime.datetime(year+1,1,1)] # Add january of next year to handle december
+    # hour list
+    hour_list = [month_list[month-1]+datetime.timedelta(hours=n) for n in range(31*24) 
+            if month_list[month-1]+datetime.timedelta(hours=n)<month_list[month]]
+    start_date=hour_list[0].strftime("%H-%d-%m-%Y")
+    end_date=hour_list[-1].strftime("%H-%d-%m-%Y")
+    print('Dates are from {} to {}.'.format(start_date,end_date))
+    return hour_list
+
+def multilayergraph(text_data,date_list,threshold):
     """ return the multi layer graph of activated components
-        in the text_data, over the days of day_list
+        in the text_data, over the days or hours of date_list
         The activity below the threshold is not recorded as active:
         threshold = minimal number of occurences during a day
     """
     import datetime
-    H = nx.DiGraph(start_date=day_list[0],end_date=day_list[-1])
+    if len(date_list)<2:
+        raise ValueError('the list of dates must contain at least 2 dates.')
+    DELTA = date_list[1]-date_list[0]
+    if DELTA > datetime.timedelta(hours=1):
+        date_delta='day'
+    else:
+        date_delta='hour'
+    H = nx.DiGraph(start_date=date_list[0],end_date=date_list[-1],date_delta=date_delta)
     #start_date = pd.datetime(2015,1,1)
     #increment = datetime.timedelta(days=1)
     #end_date = start_date + increment
     G_old = nx.DiGraph()
-    for idx,day in enumerate(day_list):
+    for idx,date in enumerate(date_list):
         # Compute the graph layer
-        data = time_slice(text_data,day,day+datetime.timedelta(days=1))
-        G = layer_graph(data,day)
+        if date_delta == 'day':
+            data = time_slice(text_data,date,date+datetime.timedelta(days=1))
+        else:
+            data = time_slice(text_data,date,date+datetime.timedelta(hours=1))
+        G = layer_graph(data,date,date_delta=date_delta)
         degrees = G.degree(weight='weight')
         nx.set_node_attributes(G,'degree',degrees)
         G = drop_edges(G,threshold)
         G.remove_nodes_from(nx.isolates(G)) # get rid of isolated nodes on the layer
         # the color number corresponds to the layer (time)
-        color = idx/len(day_list)
+        color = idx/len(date_list)
         nx.set_node_attributes(G,'color',color)
         # Add the layer to the global graph
         H.add_nodes_from(G.nodes(data=True))
@@ -297,9 +341,10 @@ def decode_cc_id(encoded_id):
     import base64
     return base64.urlsafe_b64decode(encoded_id).decode('UTF-8')
 
-def CC_to_df(ccomponent):
+def CC_to_df(ccomponent,date_delta):
     """ Create a dataframe of nodes with their properties to analyse the time evolution of a component
-        ccomponent is a graph, connected component of the multilayer graph
+        ccomponent is a graph, connected component of the multilayer graph.
+        date_delta = 'day' or 'hour'
         returns: 
         - a dataframe containing node properties as columns
         - a component id that will be used to identify the component
@@ -311,6 +356,8 @@ def CC_to_df(ccomponent):
     for node,data in ccomponent.nodes(data=True):
         df_nodes.loc[node,'id']=node
         df_nodes.loc[node,'name']=data['name']
+        if date_delta=='hour':
+            df_nodes.loc[node,'hour']=data['timestamp'].hour
         df_nodes.loc[node,'day']=data['timestamp'].day
         df_nodes.loc[node,'month']=data['timestamp'].month
         df_nodes.loc[node,'year']=data['timestamp'].year
@@ -320,6 +367,9 @@ def CC_to_df(ccomponent):
     df_nodes.month = df_nodes.month.astype(int)
     df_nodes.year = df_nodes.year.astype(int)
     df_nodes.degree = df_nodes.degree.astype(int)
+    if date_delta=='hour':
+        df_nodes.hour = df_nodes.hour.astype(int)
+    df_nodes = df_nodes.sort_values('degree',ascending=False)
     ids,indices = df_nodes.name.factorize() # associate a number to each unique node name in the component
     df_nodes['word_id_nb']=ids
     return df_nodes,ccomponent_id
@@ -331,7 +381,7 @@ def extract_components_as_timetables(G,path):
     for ccomponent in nx.weakly_connected_component_subgraphs(G):
         name_list = [data['name'] for node,data in ccomponent.nodes(data=True)]
         if len(set(name_list))>1: # each component must have nodes with at least 2 distinct names 
-            df,cc_id = CC_to_df(ccomponent)
+            df,cc_id = CC_to_df(ccomponent,G.graph['date_delta'])
             #print(cc_id)
             filename = path+'timecomponent_'+cc_id+'.json'
             print('saving to {}'.format(filename))

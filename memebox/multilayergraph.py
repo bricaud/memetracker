@@ -424,14 +424,19 @@ def CC_to_df_edges(ccomponent,date_delta):
     df_edges['word_id_nb']=ids # used for the visualization
     return df_edges,ccomponent_id
 
-def extract_components_as_timetables(G,path):
+def extract_components_as_timetables(G,path,items):
     """ Extract the components from the multilayer graph
         and save them in files, inside the path
     """
     for ccomponent in nx.weakly_connected_component_subgraphs(G):
         name_list = [data['name'] for node,data in ccomponent.nodes(data=True)]
         if len(set(name_list))>1: # each component must have nodes with at least 2 distinct names 
-            df,cc_id = CC_to_df_nodes(ccomponent,G.graph['date_delta'])
+            if items=='nodes':
+                df,cc_id = CC_to_df_nodes(ccomponent,G.graph['date_delta'])
+            elif items=='edges':
+                df,cc_id = CC_to_df_edges(ccomponent,G.graph['date_delta'])
+            else:
+                raise ValueError("items must be 'nodes' or 'edges'.")
             #print(cc_id)
             filename = path+'timecomponent_'+cc_id+'.json'
             print('saving to {}'.format(filename))

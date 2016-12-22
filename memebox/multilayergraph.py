@@ -23,6 +23,7 @@ def layer_graph(df,timestamp,date_delta):
     G = nx.DiGraph()
     for row in df.itertuples():
         text = row.filtered_text
+        media = row.platform
         #text = row.text
         textlist = str(text).split()
         for idx,word in enumerate(textlist):
@@ -47,11 +48,17 @@ def layer_graph(df,timestamp,date_delta):
                     tseries.append(row.date)
                     #.append(row.date.strftime('%Y-%m-%d'))
                     G[word_id][next_word_id]['time_series'] = tseries
+                    medialist = G[word_id][next_word_id]['media_list']
+                    medialist.append(media)
+                    G[word_id][next_word_id]['media_list'] = medialist
                 else:
                     # new edge. add with weight=1
                     new_list = []
                     new_list.append(row.date)
-                    G.add_edge(word_id, next_word_id, weight=1,time_series=new_list)
+                    new_media_list = []
+                    new_media_list.append(media)
+                    G.add_edge(word_id, next_word_id, label='intralayer',
+                        weight=1,time_series=new_list, media_list=new_media_list)
     return G
 
 def drop_edges(G,threshold=4):
@@ -341,7 +348,7 @@ def decode_cc_id(encoded_id):
     import base64
     return base64.urlsafe_b64decode(encoded_id).decode('UTF-8')
 
-def CC_to_df(ccomponent,date_delta):
+def CC_to_df_nodes(ccomponent,date_delta):
     """ Create a dataframe of nodes with their properties to analyse the time evolution of a component
         ccomponent is a graph, connected component of the multilayer graph.
         date_delta = 'day' or 'hour'
@@ -374,6 +381,49 @@ def CC_to_df(ccomponent,date_delta):
     df_nodes['word_id_nb']=ids
     return df_nodes,ccomponent_id
 
+def CC_to_df_edges(ccomponent,date_delta):
+    """ Create a dataframe of edges with their properties to analyse the time evolution of a component
+        ccomponent is a graph, connected component of the multilayer graph.
+        date_delta = 'day' or 'hour'
+        returns: 
+        - a dataframe containing edges and edges properties as columns
+        - a component id that will be used to identify the component
+            (this id is also attached to each node of the component)
+    """
+    import pandas as pd
+    import memebox.treegraph as mtg
+    df_edges = pd.DataFrame()    
+    ccomponent_id = create_cc_id(ccomponent) #unique id for the component
+    for (node1,node2,data) in ccomponent.edges(data=True):
+        node1_data,node2_data = ccomponent.node[node1],ccomponent.node[node2]
+        if (node1_data['timestamp']==node2_data['timestamp']): # if this is an intra-layer edge
+            edge_id = node1+'_'+node2
+            #print('=='+edge_id)
+            df_edges.loc[edge_id,'id']=edge_id
+            df_edges.loc[edge_id,'name']=node1_data['name']+' '+node2_data['name']
+            if date_delta=='hour':
+                df_edges.loc[edge_id,'hour']=data['timestamp'].hour
+            df_edges.loc[edge_id,'day']=node1_data['timestamp'].day
+            df_edges.loc[edge_id,'month']=node1_data['timestamp'].month
+            df_edges.loc[edge_id,'year']=node1_data['timestamp'].year
+            df_edges.loc[edge_id,'occur']=data['weight']
+            medias = pd.value_counts(data['media_list']).to_dict()
+            main_media,media_occur = mtg.get_main_media(medias)
+            df_edges.loc[edge_id,'main_media']=main_media
+            df_edges.loc[edge_id,'main_media_occur']=media_occur
+            df_edges.loc[edge_id,'cc_id']=ccomponent_id
+    df_edges.day = df_edges.day.astype(int)
+    df_edges.month = df_edges.month.astype(int)
+    df_edges.year = df_edges.year.astype(int)
+    df_edges.occur = df_edges.occur.astype(int)
+    if date_delta=='hour':
+        df_edges.hour = df_edges.hour.astype(int)
+    df_edges.main_media_occur = df_edges.main_media_occur.astype(int)
+    df_edges = df_edges.sort_values('occur',ascending=False)
+    ids,indices = df_edges.name.factorize() # associate a number to each unique node name in the component
+    df_edges['word_id_nb']=ids # used for the visualization
+    return df_edges,ccomponent_id
+
 def extract_components_as_timetables(G,path):
     """ Extract the components from the multilayer graph
         and save them in files, inside the path
@@ -381,7 +431,7 @@ def extract_components_as_timetables(G,path):
     for ccomponent in nx.weakly_connected_component_subgraphs(G):
         name_list = [data['name'] for node,data in ccomponent.nodes(data=True)]
         if len(set(name_list))>1: # each component must have nodes with at least 2 distinct names 
-            df,cc_id = CC_to_df(ccomponent,G.graph['date_delta'])
+            df,cc_id = CC_to_df_nodes(ccomponent,G.graph['date_delta'])
             #print(cc_id)
             filename = path+'timecomponent_'+cc_id+'.json'
             print('saving to {}'.format(filename))

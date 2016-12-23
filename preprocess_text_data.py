@@ -19,8 +19,9 @@ data_path = config['DEFAULT']['data_path']
 pickle_data_path = config['DEFAULT']['pickle_data_path']
 
 series_name = 'marseille'
-series_name = 'baron_noir'
-#series_name = 'versailles'
+#series_name = 'baron_noir'
+series_name = 'versailles'
+#series_name = 'LBDL'
 
 csvfile = data_path+series_name+'.csv'
 print('Loading {}'.format(csvfile))

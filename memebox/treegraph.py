@@ -94,7 +94,7 @@ def append_chain(list_of_ngram_list,word_chain):
     # for each dataframe, corresponding to the n-grams
     # turn the list of words into a string of the size of the n-gram
     # add it to its dataframe
-    for n in range(len(word_chain)-1):
+    for n in range(len(word_chain)): #word_chain-1
         n_gram = ' '.join(word_chain[:n+1])
         list_of_ngram_list[n].append(n_gram)
     return list_of_ngram_list

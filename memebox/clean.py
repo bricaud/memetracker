@@ -23,7 +23,7 @@ def load_csv(csvfile):
 	# Extract a subset of the data
 	filtered_data = Dataf[["date","text","title", "platform","hashtags"]].copy()
 	# the entries of the date column are dates:
-	filtered_data['date'] = pd.to_datetime(filtered_data['date'])#,infer_datetime_format=True)
+	filtered_data['date'] = pd.to_datetime(filtered_data['date'],dayfirst=True)#,infer_datetime_format=True)
 	return filtered_data
 
 def reject_stopwords(tokens,stopwords):

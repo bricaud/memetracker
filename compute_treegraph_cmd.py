@@ -74,7 +74,7 @@ print('Nb of occurences of {} : {}'.format(candidat_word,info_dic_of_ngrams[cand
 print('Medias where it appears: {}'.format(info_dic_of_ngrams[candidat_word]['medias']))
 
 print('Constructing the tree graph.')
-G,root_id = mtg.createTreeGraph_fromdic(info_dic_of_ngrams,candidat_word,threshold=3)
+G,root_id = mtg.createTreeGraph_fromdic(info_dic_of_ngrams,candidat_word,threshold=2)
 # save the graph
 json_filename = "treegraph"+series_name+"_"+candidat_word+".json"
 filename = viz_path + json_filename

@@ -53,7 +53,7 @@ def find_ngrams_dic(word,df_texts,direction='forward',n_grams=3):
     # * A dictionary of ngrams as keys and the list of indices where to find the n-grams as values.
     #   The ngram keys are string of words separated by a space.
     # Example:
-    #         dic_of_ngrams = find_ngrams_dic(word,texts,direction='forward')
+    #         dic_of_ngrams = find_ngrams_dic(word,texts,direction='forward',n_grams=4)
     
     import pandas as pd
     dic_of_ngrams = {}
@@ -70,8 +70,8 @@ def find_ngrams_dic(word,df_texts,direction='forward',n_grams=3):
                 wordlist.reverse()
             else :
                 raise NameError('Unknown direction. Only \'forward\' or \'backward\' are allowed.')
-            if len(set(wordlist)&set([word]))>0:
-                word_indices = [i for i, x in enumerate(wordlist) if x == word]
+            if len(set(wordlist)&set([word]))>0: # if the word is inside the text, at least once
+                word_indices = [i for i, x in enumerate(wordlist) if x == word] #indices of the occurences of the word in the text
                 for word_ind in word_indices:
                     word_chain = chain_of_grams(word_ind,wordlist,n_grams)
                     #word_chain = ' '.join(word_chain)
@@ -103,7 +103,7 @@ def append_chains_to_dic(dic_of_ngrams,word_chain,text_index):
     # for each dataframe, corresponding to the n-grams
     # turn the list of words into a string of the size of the n-gram
     # add it to a dictionary as well as the df index where the ngram is located
-    for n in range(len(word_chain)-1):
+    for n in range(len(word_chain)):
         n_gram = ' '.join(word_chain[:n+1])
         if n_gram in dic_of_ngrams:
             dic_of_ngrams[n_gram].append(text_index)
@@ -186,8 +186,7 @@ def createTreeGraph_fromdic(dic_of_ngrams,root_word,threshold=0):
     # each dataframe has 2 columns, 'ngram' and 'nb_occur' for the n-gram and its occurence in the texts
     # the root word is contained in list_of_df_of_ngrams[0].ngram[0]
     # threshold (int) set the number of occurences above which a ngram is included in the graph
-    # popularity (int) limits the number of n-gram added to the graph to the top m=popularity**n
-    # if popularity=0 there is no limit.
+    
     
     import networkx as nx
     # root word

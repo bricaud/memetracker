@@ -181,7 +181,7 @@ def compress_component(G,threshold):
         # add relative date property: for the date relative to the beginning of the component
         G2 = add_relative_date(G2)
         # relabel the nodes to take into account the first time stamp
-        dic_of_names = {name:name+'_'+props['start_time'] for(name,props) in G2.nodes(data=True) }
+        dic_of_names = {name:name+'_'+props['start_time']+'_'+component_id for(name,props) in G2.nodes(data=True) }
         G3 = nx.relabel_nodes(G2,dic_of_names)
         return G3
     else:

@@ -30,13 +30,13 @@ series_name = 'baron_noir'
 pickle_file = pickle_data_path+series_name+'_texts'+'.pkl'
 text_data = pd.read_pickle(pickle_file)
 
-min_threshold = 8
+min_threshold = 3
 time_threshold = 2
 def compute_components(text_data,day_list):
 	# compute the components
 	# return the multilayer graph and the graph of compressed components
 	import numpy as np
-	threshold = 8
+	threshold = 3
 	print('Computing the multilayer graph.')
 	H = mlg.multilayergraph(text_data,day_list,threshold=threshold)
 	print('Compressing the connected components.')

@@ -24,6 +24,7 @@ def layer_graph(df,timestamp,date_delta):
     for row in df.itertuples():
         text = row.filtered_text
         media = row.platform
+        text_id = row.Index
         #text = row.text
         textlist = str(text).split()
         for idx,word in enumerate(textlist):
@@ -39,26 +40,33 @@ def layer_graph(df,timestamp,date_delta):
                     G.add_node(next_word_id,name=next_word,timestamp=timestamp)
                 # Adding an edge
                 if G.has_edge(word_id,next_word_id):
-                    # we added this one before, just increase the weight by one
+                    # we have already seen the edge before, 
+                    # just increase the weight by one
                     G[word_id][next_word_id]['weight'] += 1
+                    # save the date  of the text
                     tseries = G[word_id][next_word_id]['time_series']
-                    #print(tseries)
-                    #print(type(tseries))
-                    #print(type(row.date))
                     tseries.append(row.date)
                     #.append(row.date.strftime('%Y-%m-%d'))
                     G[word_id][next_word_id]['time_series'] = tseries
+                    # save the media of the text
                     medialist = G[word_id][next_word_id]['media_list']
                     medialist.append(media)
                     G[word_id][next_word_id]['media_list'] = medialist
+                    # save text id
+                    textidlist = G[word_id][next_word_id]['textid_list']
+                    textidlist.append(text_id)
+                    G[word_id][next_word_id]['textid_list'] = textidlist
                 else:
                     # new edge. add with weight=1
                     new_list = []
                     new_list.append(row.date)
                     new_media_list = []
                     new_media_list.append(media)
+                    new_text_id_list = []
+                    new_text_id_list.append(text_id)
                     G.add_edge(word_id, next_word_id, label='intralayer',
-                        weight=1,time_series=new_list, media_list=new_media_list)
+                        weight=1,time_series=new_list, media_list=new_media_list,
+                        textid_list=new_text_id_list)
     return G
 
 def drop_edges(G,threshold=4):
@@ -407,6 +415,9 @@ def CC_to_df_edges(ccomponent,date_delta):
             df_edges.loc[edge_id,'month']=node1_data['timestamp'].month
             df_edges.loc[edge_id,'year']=node1_data['timestamp'].year
             df_edges.loc[edge_id,'occur']=data['weight']
+            print(data['textid_list'])
+            # Dataframes do not handle lists of variable size (TODO)
+            #df_edges.loc[edge_id,'textid_list']=data['textid_list']
             medias = pd.value_counts(data['media_list']).to_dict()
             main_media,media_occur = mtg.get_main_media(medias)
             df_edges.loc[edge_id,'main_media']=main_media
@@ -427,8 +438,11 @@ def CC_to_df_edges(ccomponent,date_delta):
 def extract_components_as_timetables(G,path,items):
     """ Extract the components from the multilayer graph
         and save them in files, inside the path
+        if path==None, the components are not saved to a file
+        the function return also a list of dataframe (one per component)
     """
-    for ccomponent in nx.weakly_connected_component_subgraphs(G):
+    list_of_df = []
+    for ccomponent in nx.weakly_connected_component_subgraphs(G,copy=True):
         name_list = [data['name'] for node,data in ccomponent.nodes(data=True)]
         if len(set(name_list))>1: # each component must have nodes with at least 2 distinct names 
             if items=='nodes':
@@ -437,7 +451,10 @@ def extract_components_as_timetables(G,path,items):
                 df,cc_id = CC_to_df_edges(ccomponent,G.graph['date_delta'])
             else:
                 raise ValueError("items must be 'nodes' or 'edges'.")
+            list_of_df.append(df)
             #print(cc_id)
-            filename = path+'timecomponent_'+cc_id+'.json'
-            print('saving to {}'.format(filename))
-            df.to_json(filename,orient='records')
+            if path!=None:
+                filename = path+'timecomponent_'+cc_id+'.json'
+                print('saving to {}'.format(filename))
+                df.to_json(filename,orient='records')
+    return list_of_df

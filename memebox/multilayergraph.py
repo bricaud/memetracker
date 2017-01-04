@@ -13,7 +13,10 @@ def time_slice(df,start_date,end_date):
 
 def layer_graph(df,timestamp,date_delta):
 # for each text, create node for each keyword and connect to its following word
-# date_delta = 'day' our 'hour'
+# df is a dataframe containing the text data to process
+# df must contain columns 'filtered_text' and 'platform'
+# timestamp is the datetime object giving the date of the layer
+# date_delta = 'day' our 'hour' (time period between two graph layers)
     if date_delta == 'day': 
         timestamp_str = '_'+timestamp.strftime("%Y-%m-%d")
     elif date_delta =='hour':
@@ -22,12 +25,15 @@ def layer_graph(df,timestamp,date_delta):
         raise ValueError("date-delta not recognized. Use 'day' or 'hour'. ")
     G = nx.DiGraph()
     for row in df.itertuples():
+        # data needed from the dataframe
         text = row.filtered_text
         media = row.platform
         text_id = row.Index
         #text = row.text
         textlist = str(text).split()
         for idx,word in enumerate(textlist):
+            # for each text in the dataframe, words are nodes of the graph,
+            # connected if they follow each other
             #print(idx)
             if (idx+1)<len(textlist):
                 next_word = textlist[idx+1]

@@ -323,6 +323,27 @@ def save_graph(graph,filename):
         with open(filename, "w") as f:
             f.write(s)
 
+def load_graph(filename):
+    """ Load a graph from a json file.
+    """
+    from networkx.readwrite import json_graph
+    import json
+    with open(filename, "r") as f:
+        data = json.load(f)
+    # create a dic to translate ids to numbers for networkx
+    dic_t = {}
+    for idx,key in enumerate(data['nodes']):
+        dic_t[key['id']] = idx
+    # associate numbers to ids in links
+    data['links'] = [
+                {
+                    'source': dic_t[link['source']],
+                    'target': dic_t[link['target']]
+                }
+                for link in data['links']]
+    H = json_graph.node_link_graph(data,directed=True,multigraph=False)
+    return H
+
 
 def draw_graph(graph):
     import networkx as nx

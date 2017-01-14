@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 
-"""compute_treegraph.py: 
+"""compute_treegraph_cmd.py: 
 	from the pickle file containing the filtered texts
 	extract the ngrams made out of a chosen word
 	Create a tree graph of ngrams of different lengths
 	save the data as a tree graph to a json file
 	the folders where to find and save the data are given by the memeconfig.ini file
+
+	Example for the word 'politique in the series 'baron_noir' over the year 2016:
+	python compute_treegraph_cmd.py 'politique' 'baron_noir' '01-01-2016' '31-12-2016'
 """
 
 __author__      = "Benjamin Ricaud"

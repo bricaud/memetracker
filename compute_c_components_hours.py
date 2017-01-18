@@ -15,17 +15,32 @@ __copyright__   = "Copyright 2016, Benjamin Ricaud"
 import pandas as pd
 import memebox.multilayergraph as mlg
 import configparser
+import os.path
 config = configparser.ConfigParser()
 config.read('memeconfig.ini')
 #data_path = config['DEFAULT']['data_path']
 pickle_data_path = config['DEFAULT']['pickle_data_path']
-viz_path = config['DEFAULT']['viz_data_path']
-time_component_path = config['DEFAULT']['time_data_path']
+viz_path_default = config['DEFAULT']['viz_path']
+viz_data_path_default = config['DEFAULT']['viz_data_path']
 
 series_name = 'LBDL'
 series_name = 'marseille'
-series_name = 'versailles'
-series_name = 'baron_noir'
+#series_name = 'versailles'
+#series_name = 'baron_noir'
+
+viz_data_path = viz_data_path_default+series_name+'/'
+if not os.path.exists(viz_data_path):
+    os.makedirs(viz_data_path) # if it does not exist, create the directory
+
+c_component_path = viz_data_path+'c_components/'
+if not os.path.exists(c_component_path):
+    os.makedirs(c_component_path) # if it does not exist, create the directory
+
+
+time_component_path = viz_data_path+'time_components/'
+if not os.path.exists(time_component_path):
+    os.makedirs(time_component_path) # if it does not exist, create the directory
+
 
 pickle_file = pickle_data_path+series_name+'_texts'+'.pkl'
 text_data = pd.read_pickle(pickle_file)
@@ -36,7 +51,7 @@ def compute_components(text_data,day_list):
 	# compute the components
 	# return the multilayer graph and the graph of compressed components
 	import numpy as np
-	threshold = 3
+	threshold = 10
 	time_threshold = 2
 	print('Computing the multilayer graph.')
 	H = mlg.multilayergraph(text_data,day_list,threshold=threshold)
@@ -60,7 +75,7 @@ for month in range(1,13):
 	H,G_all = compute_components(text_data,day_list)
 	# save the graph
 	json_filename = 'cc_'+series_name+'_'+str(year)+'_'+str(month)+'.json'
-	filename = viz_path + json_filename
+	filename = c_component_path + json_filename
 	mlg.save_graph(G_all,filename)
 	print('Graph written to file: {}'.format(filename))
 	print('extracting the time data from the connected components')
@@ -73,7 +88,7 @@ for month in range(1,10):
 	H,G_all = compute_components(text_data,day_list)
 	# save the graph
 	json_filename = 'cc_'+series_name+'_'+str(year)+'_'+str(month)+'.json'
-	filename = viz_path + json_filename
+	filename = c_component_path + json_filename
 	mlg.save_graph(G_all,filename)
 	print('Graph written to file: {}'.format(filename))
 	print('extracting the time data from the connected components')

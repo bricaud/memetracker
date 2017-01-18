@@ -15,17 +15,26 @@ __copyright__   = "Copyright 2016, Benjamin Ricaud"
 import pandas as pd
 import memebox.multilayergraph as mlg
 import configparser
+import os.path
 config = configparser.ConfigParser()
 config.read('memeconfig.ini')
 #data_path = config['DEFAULT']['data_path']
 pickle_data_path = config['DEFAULT']['pickle_data_path']
-viz_path = config['DEFAULT']['viz_data_path']
-time_component_path = config['DEFAULT']['time_data_path']
+viz_path_default = config['DEFAULT']['viz_data_path']
+time_component_path_default = config['DEFAULT']['time_data_path']
 
 series_name = 'LBDL'
 series_name = 'marseille'
 series_name = 'versailles'
 series_name = 'baron_noir'
+
+viz_path = viz_path_default+series_name+'/'
+if not os.path.exists(viz_path):
+    os.makedirs(viz_path) # if it does not exist, create the directory
+
+time_component_path = time_component_path_default+series_name+'/'
+if not os.path.exists(time_component_path):
+    os.makedirs(time_component_path) # if it does not exist, create the directory
 
 pickle_file = pickle_data_path+series_name+'_texts'+'.pkl'
 text_data = pd.read_pickle(pickle_file)
@@ -63,7 +72,7 @@ for month in range(1,13):
 	mlg.save_graph(G_all,filename)
 	print('Graph written to file: {}'.format(filename))
 	print('extracting the time data from the connected components')
-	mlg.extract_components_as_timetables(H,time_component_path)
+	mlg.extract_components_as_timetables(H,time_component_path,items='edges')
 
 # for the year 2016
 year = 2016
@@ -76,7 +85,7 @@ for month in range(1,10):
 	mlg.save_graph(G_all,filename)
 	print('Graph written to file: {}'.format(filename))
 	print('extracting the time data from the connected components')
-	mlg.extract_components_as_timetables(H,time_component_path)
+	mlg.extract_components_as_timetables(H,time_component_path,items='edges')
 
 
 

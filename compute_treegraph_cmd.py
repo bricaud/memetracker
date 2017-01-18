@@ -20,6 +20,7 @@ import memebox.multilayergraph as mlg
 import configparser
 import argparse
 import datetime
+import os.path
 
 parser = argparse.ArgumentParser(description='Compute the tree graph of a given word from the corpus.')
 parser.add_argument('word',
@@ -44,8 +45,15 @@ config = configparser.ConfigParser()
 config.read('/home/benjamin/Documents/memetracker/memeconfig.ini')
 #data_path = config['DEFAULT']['data_path']
 pickle_data_path = config['DEFAULT']['pickle_data_path']
-viz_path = config['DEFAULT']['viz_data_path']
+viz_data_path_default = config['DEFAULT']['viz_data_path']
 
+viz_data_path = viz_data_path_default+series_name+'/'
+if not os.path.exists(viz_data_path):
+    os.makedirs(viz_data_path) # if it does not exist, create the directory
+
+treegraph_path = viz_data_path+'treegraph/'
+if not os.path.exists(treegraph_path):
+    os.makedirs(treegraph_path) # if it does not exist, create the directory
 
 # Series name
 #series_name = 'marseille'
@@ -80,7 +88,7 @@ print('Constructing the tree graph.')
 G,root_id = mtg.createTreeGraph_fromdic(info_dic_of_ngrams,candidat_word,threshold=2)
 # save the graph
 json_filename = "treegraph"+series_name+"_"+candidat_word+".json"
-filename = viz_path + json_filename
+filename = treegraph_path + json_filename
 print('saving the graph to {}'.format(filename))
 mtg.save_graph(G,root_id,filename)
 

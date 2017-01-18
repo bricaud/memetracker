@@ -442,7 +442,7 @@ def CC_to_df_edges(ccomponent,date_delta):
             df_edges.loc[edge_id,'month']=node1_data['timestamp'].month
             df_edges.loc[edge_id,'year']=node1_data['timestamp'].year
             df_edges.loc[edge_id,'occur']=data['weight']
-            print(data['textid_list'])
+            #print(data['textid_list'])
             # Dataframes do not handle lists of variable size (TODO)
             #df_edges.loc[edge_id,'textid_list']=data['textid_list']
             medias = pd.value_counts(data['media_list']).to_dict()

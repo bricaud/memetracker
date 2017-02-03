@@ -450,6 +450,10 @@ def CC_to_df_edges(ccomponent,date_delta):
             df_edges.loc[edge_id,'main_media']=main_media
             df_edges.loc[edge_id,'main_media_occur']=media_occur
             df_edges.loc[edge_id,'cc_id']=ccomponent_id
+            #print(medias.keys())
+            #print(medias['Twitter'])
+            for key in medias.keys():
+                df_edges.loc[edge_id,key]=medias[key]
     df_edges.day = df_edges.day.astype(int)
     df_edges.month = df_edges.month.astype(int)
     df_edges.year = df_edges.year.astype(int)

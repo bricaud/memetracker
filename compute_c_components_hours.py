@@ -24,7 +24,7 @@ viz_path_default = config['DEFAULT']['viz_path']
 viz_data_path_default = config['DEFAULT']['viz_data_path']
 
 series_name = 'LBDL'
-series_name = 'marseille'
+#series_name = 'marseille'
 #series_name = 'versailles'
 #series_name = 'baron_noir'
 
@@ -45,14 +45,14 @@ if not os.path.exists(time_component_path):
 pickle_file = pickle_data_path+series_name+'_texts'+'.pkl'
 text_data = pd.read_pickle(pickle_file)
 
-min_threshold = 3
+#min_threshold = 3
 
 def compute_components(text_data,day_list):
 	# compute the components
 	# return the multilayer graph and the graph of compressed components
 	import numpy as np
-	threshold = 10
-	time_threshold = 2
+	threshold = 1
+	time_threshold = 1
 	print('Computing the multilayer graph.')
 	H = mlg.multilayergraph(text_data,day_list,threshold=threshold)
 	print('Compressing the connected components.')
@@ -66,7 +66,7 @@ def compute_components(text_data,day_list):
 	G_all.graph['series_name'] = series_name
 	G_all.graph['threshold'] = str(threshold)#str(threshold2)
 	return H,G_all
-
+"""
 # for the year 2015
 year = 2015
 for month in range(1,13):
@@ -80,7 +80,7 @@ for month in range(1,13):
 	print('Graph written to file: {}'.format(filename))
 	print('extracting the time data from the connected components')
 	mlg.extract_components_as_timetables(H,time_component_path,'edges')#items='nodes')
-
+"""
 # for the year 2016
 year = 2016
 for month in range(1,10):
